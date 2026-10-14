@@ -1,0 +1,48 @@
+name: Sync main from ensdomains/contracts-v2
+
+on:
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Force-push main to upstream/main even if the fork has diverged'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency: sync-upstream
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the control branch
+        uses: actions/checkout@v4
+        with:
+          ref: steg
+          fetch-depth: 1
+
+      - name: Mirror upstream main and tags
+        env:
+          FORCE: ${{ inputs.force }}
+        run: |
+          set -euo pipefail
+          git remote add upstream https://github.com/ensdomains/contracts-v2.git
+          git fetch --no-tags upstream main
+          git fetch upstream --tags
+          git fetch origin main || true
+          before=$(git rev-parse --verify -q origin/main || echo none)
+          after=$(git rev-parse upstream/main)
+          if [ "$before" = "$after" ]; then
+            echo "main already at $after"
+          elif [ "${FORCE:-false}" = "true" ]; then
+            git push --force origin upstream/main:refs/heads/main
+          else
+            # Fast-forward only. A failure here means someone committed to main on the fork.
+            git push origin upstream/main:refs/heads/main
+          fi
+          git push origin --tags
+          echo "main: $before -> $after"
