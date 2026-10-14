@@ -51,9 +51,13 @@ jobs:
             # change workflow files, so only tags reachable from main are copied.
             if [ "${FORCE:-false}" = "true" ]; then gh repo sync "$GITHUB_REPOSITORY" --branch main --force
             else gh repo sync "$GITHUB_REPOSITORY" --branch main; fi
-            tags=$(git tag --merged upstream/main)
-            if [ -n "$tags" ]; then
-              git push origin $(for t in $tags; do printf 'refs/tags/%s:refs/tags/%s ' "$t" "$t"; done)
-            fi
+            skipped=""
+            for t in $(git tag --merged upstream/main); do
+              if git ls-remote --exit-code --tags origin "refs/tags/$t" >/dev/null 2>&1; then continue; fi
+              if out=$(git push origin "refs/tags/$t:refs/tags/$t" 2>&1); then echo "tag $t mirrored"
+              elif echo "$out" | grep -q "workflows. permission"; then skipped="$skipped $t"
+              else echo "$out"; exit 1; fi
+            done
+            [ -n "$skipped" ] && echo "tags not mirrored with the default token (set SYNC_TOKEN):$skipped" || true
           fi
           echo "main: $before -> $after"
