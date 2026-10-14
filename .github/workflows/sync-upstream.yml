@@ -12,6 +12,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 concurrency: sync-upstream
 
@@ -64,3 +65,16 @@ jobs:
             [ -n "$skipped" ] && echo "tags not mirrored with the default token (set SYNC_TOKEN):$skipped" || true
           fi
           echo "main: $before -> $after"
+
+      - name: Keep inherited workflows disabled
+        # A push made with SYNC_TOKEN triggers the workflows that upstream ships on main.
+        # This fork runs nothing but the sync, so every other workflow stays disabled.
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for id in $(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows?per_page=100" \
+              --jq '.workflows[] | select(.path != ".github/workflows/sync-upstream.yml" and .state == "active") | .id'); do
+            gh api -X PUT "repos/${GITHUB_REPOSITORY}/actions/workflows/${id}/disable"
+            echo "disabled workflow ${id}"
+          done
