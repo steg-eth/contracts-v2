@@ -24,24 +24,27 @@ jobs:
         with:
           ref: steg
           fetch-depth: 1
+          # The persisted header would override the token in the remote URL below.
+          persist-credentials: false
 
       - name: Mirror upstream main and tags
         env:
           FORCE: ${{ inputs.force }}
           SYNC_TOKEN: ${{ secrets.SYNC_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
           GH_TOKEN: ${{ secrets.SYNC_TOKEN || github.token }}
         run: |
           set -euo pipefail
           git remote add upstream https://github.com/ensdomains/contracts-v2.git
           git fetch --no-tags upstream main
-          git fetch upstream --tags
+          git fetch --no-tags upstream 'refs/tags/*:refs/tags/*'
+          git remote set-url origin "https://x-access-token:${SYNC_TOKEN:-$GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git fetch origin main || true
           before=$(git rev-parse --verify -q origin/main || echo none)
           after=$(git rev-parse upstream/main)
 
           if [ -n "$SYNC_TOKEN" ]; then
             # A fine-grained PAT with Contents and Workflows write: full-fidelity git mirror.
-            git remote set-url origin "https://x-access-token:${SYNC_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
             if [ "$before" = "$after" ]; then echo "main already at $after"
             elif [ "${FORCE:-false}" = "true" ]; then git push --force origin upstream/main:refs/heads/main
             else git push origin upstream/main:refs/heads/main; fi
