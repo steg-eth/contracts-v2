@@ -47,12 +47,12 @@ jobs:
             else git push origin upstream/main:refs/heads/main; fi
             git push origin --tags
           else
-            # Default token: GitHub's own fork sync for main. It cannot push commits that add or
-            # change workflow files, so only tags reachable from main are copied.
+            # Default token: GitHub's own fork sync for main. The token cannot push a ref whose
+            # workflow files differ from those already in the repository, so such tags are skipped.
             if [ "${FORCE:-false}" = "true" ]; then gh repo sync "$GITHUB_REPOSITORY" --branch main --force
             else gh repo sync "$GITHUB_REPOSITORY" --branch main; fi
             skipped=""
-            for t in $(git tag --merged upstream/main); do
+            for t in $(git tag); do
               if git ls-remote --exit-code --tags origin "refs/tags/$t" >/dev/null 2>&1; then continue; fi
               if out=$(git push origin "refs/tags/$t:refs/tags/$t" 2>&1); then echo "tag $t mirrored"
               elif echo "$out" | grep -q "workflows. permission"; then skipped="$skipped $t"
