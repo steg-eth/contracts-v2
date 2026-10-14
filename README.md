@@ -14,4 +14,5 @@ This is a mirror of [ensdomains/contracts-v2](https://github.com/ensdomains/cont
 ## Notes
 
 - GitHub disables scheduled workflows in a public repository after 60 days without activity. If the sync stops, run it once by hand from the Actions tab.
+- The default token cannot push commits that add or change workflow files. With it, the workflow uses GitHub's fork sync for `main` and copies only the tags reachable from `main`. Two historical tags (`v0.0.1-namechain`, `sepolia-deployment-2026-05-28`) are therefore not here. To mirror everything, add a repository secret `SYNC_TOKEN`: a fine-grained token with Contents and Workflows write on this repository. The workflow uses it when present.
 - Issues and pull requests belong upstream. This repository does not accept them.
